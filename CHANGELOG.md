@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v1.1.2-beta.0
+
+[compare changes](https://github.com/zzdaddy/PixeledPicPro/compare/v1.1.1-beta.0...v1.1.2-beta.0)
+
 ## v1.1.1-beta.0
 
 [compare changes](https://github.com/zzdaddy/PixeledPicPro/compare/v1.1.0...v1.1.1-beta.0)
