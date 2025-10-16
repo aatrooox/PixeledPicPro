@@ -61,7 +61,7 @@ export class LeaferController {
   private app!: App;
   private containerView: viewParam;
   //   private groups?: Group[];
-  public mouseMode: MouseMode = MouseMode.BASIC;
+  public mouseMode: MouseMode = MouseMode.FILL;
   private InnerContainer: InnerContainer = {}; // 所有的容器对象
   private innerShape: InnerShape = {}; // 所有的形状对象
   private innerEvent: InnerEvent = {}; // 已经绑定的事件
@@ -79,6 +79,12 @@ export class LeaferController {
       view: isRef(this.containerView)
         ? (this.containerView.value as string)
         : this.containerView,
+      zoom: {
+        disabled: true,
+      },
+      move: {
+        disabled: true,
+      },
       //   wheel: {
       //     zoomMode: stageConfig.zoom,
       //   },
@@ -94,6 +100,7 @@ export class LeaferController {
     });
     this.setStage(stageConfig);
     this.listenResizeContainer();
+    // this.setMouseMode(this.mouseMode, this.app);
   }
 
   getApp() {
@@ -162,7 +169,8 @@ export class LeaferController {
   // start
   onStartFillShape(container: StageContainer, fillConfig = this.fillConfig) {
     return (event: PointerEvent) => {
-      (event.target as Rect).fill = fillConfig.color;
+      if (event.target.tag !== "Frame")
+        (event.target as Rect).fill = fillConfig.color;
       let moveEventId = this.bindInnerEvent(
         PointerEvent.MOVE,
         container,
@@ -180,7 +188,8 @@ export class LeaferController {
 
   onMoveFillShape(fillConfig = this.fillConfig) {
     return (event: PointerEvent) => {
-      (event.target as Rect).fill = fillConfig.color;
+      if (event.target.tag !== "Frame")
+        (event.target as Rect).fill = fillConfig.color;
     };
   }
 
@@ -196,7 +205,7 @@ export class LeaferController {
       this.innerEvent[target.innerId] = [];
     }
 
-    let curEventId = target.on_(event, cb, bind);
+    let curEventId = target.on_(event, cb, bind, { capture: true });
     // 事件id传进去
     this.innerEvent[target.innerId].push(curEventId);
     return curEventId;
@@ -257,8 +266,24 @@ export class LeaferController {
     console.log(`增加container`);
     // leafer.removeAll();
     leafer.add(container);
+    this.addStageBgContainer(container);
   }
-
+  // 基于某个容器, 创建一个底层的辅助层, 因为容器本身是透明的
+  addStageBgContainer(basicContainer: StageContainer) {
+    this.app.ground.removeAll();
+    const box = new Box({
+      x: basicContainer.x,
+      y: basicContainer.y,
+      width: basicContainer.width,
+      height: basicContainer.height,
+      scale: basicContainer.scale,
+      fill: "rgba(0,0,0,0.1)",
+      name: "bgBox",
+      hittable: false,
+      //   strokeWidth: 4,
+    });
+    this.app.ground.add(box);
+  }
   // 添加矩形, 如果指定了StageContainer, 则添加到StageContainer里
   addRect(rect: Rect, container?: StageContainer) {
     if (container) {

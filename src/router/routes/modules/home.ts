@@ -2,7 +2,7 @@ const home = [
   {
     path: "/home",
     name: "Home",
-    component: () => import("~/pages/home/index.vue"),
+    component: () => import("~/pages/home/components/Factory.vue"),
     meta: {
       title: "Home",
     },

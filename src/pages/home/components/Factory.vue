@@ -46,13 +46,13 @@ const pastePreset = ref<string>("");
 // const showPasteTextarea = ref<boolean>(true);
 // const curPreset = ref<any>(null);
 // 是否是填充模式
-const isFillMode = ref<boolean>(false);
+const isFillMode = ref<boolean>(true);
 // 是否已经动态变更
 
-const mode = ref("basic");
+const mode = ref(MouseMode.FILL);
 const colorConfig = ref(["#000000", "#ffffff", "#1e80ff", "#f53f3f"]);
 const selectColor = ref(colorConfig.value[0]);
-const baseRectSize = ref<number>(15);
+const baseRectSize = ref<number>(40);
 const shapeTableRow = ref<number>(20); // xcount
 const shapeTableCol = ref<number>(20); // ycount
 
@@ -104,8 +104,8 @@ const awsomePreset = ref([
 
 // 清空画布
 const resetStage = () => {
-  isFillMode.value = false;
-  mode.value = MouseMode.BASIC;
+  isFillMode.value = true;
+  mode.value = MouseMode.FILL;
   Stage.value.removeStage();
   PixelRectFrame.value = null;
 };
@@ -116,32 +116,55 @@ const resetGround = () => {
   Stage.value.getGround() && Stage.value.getGround().removeAll();
   GroundCanvas.value = null;
 };
+
+// 清除颜色
 const resetAndRebuildStage = () => {
   resetStage();
   resetGround();
   genPixelCanvasFrame();
+  Stage.value.setMouseMode(MouseMode.FILL, PixelRectFrame.value);
 };
 // 画板, 画板是可交互区域
 const genPixelCanvasFrame = () => {
   let width = Stage.value.getApp().width;
   let height = Stage.value.getApp().height;
-  console.log(`生成Frame`);
+  console.log(`画布大小为: ${width} x ${height}`);
   // 边框算在宽高之内，类似 border-box
   if (!PixelRectFrame.value) {
+    // 设置绘图区域在容器中心
+    let frameWidth = shapeTableRow.value * baseRectSize.value;
+    let frameHeight = shapeTableCol.value * baseRectSize.value;
+    let viewFrameWidth = frameWidth;
+    let viewFrameHeight = frameHeight;
+    let scale = 1; // 缩放比例
+    // 如果渲染的绘图区域超出视图, 则设置一个缩放值
+    scale = (width * 0.5) / frameWidth;
+    viewFrameWidth = frameWidth * scale;
+    viewFrameHeight = frameHeight * scale;
+    // 如果宽缩放后,高还比较高,则再算一遍缩放值
+    if (viewFrameHeight > height * 0.5) {
+      scale = (height * 0.5) / frameHeight;
+      viewFrameHeight = frameHeight * scale;
+      viewFrameWidth = frameWidth * scale;
+    }
+    console.log(`缩放比例: ${scale}`);
+
+    // 基于缩放后的尺寸, 把绘图区域固定在中间
     PixelRectFrame.value = new Frame({
-      x: width / 2,
-      y: height / 2 - 100,
-      width: shapeTableRow.value * baseRectSize.value,
-      height: shapeTableCol.value * baseRectSize.value,
+      x: width / 2 - viewFrameWidth / 2,
+      y: height / 2 - viewFrameHeight / 2,
+      width: frameWidth,
+      height: frameHeight,
       overflow: "hide",
       // stroke: "#000",
       // strokeWidth: 0.5,
-      shadow: {
-        x: 0,
-        y: 0,
-        blur: 4,
-        color: "rgba(0,0,0,0.5)",
-      },
+      scale: scale,
+      //   shadow: {
+      //     x: 0,
+      //     y: 0,
+      //     blur: 4,
+      //     color: "rgba(0,0,0,0.5)",
+      //   },
       fill: "transparent",
       draggable: false,
     });
@@ -160,7 +183,8 @@ const genPixelCells = () => {
         y: baseRectSize.value * yIndex,
         width: baseRectSize.value,
         height: baseRectSize.value,
-        fill: "#ebe5ef",
+        cornerRadius: baseRectSize.value / 2,
+        fill: "transparent",
         draggable: false,
         rectName: `${xIndex}-${yIndex}-pixel`,
       };
@@ -271,7 +295,7 @@ const setDynamicRects = (direction: Direction, count: number = 1) => {
         y,
         width: baseRectSize.value,
         height: baseRectSize.value,
-        fill: "#ebe5ef",
+        fill: "transparent",
         draggable: false,
       };
       const rect = new Rect(attrs);
@@ -325,6 +349,7 @@ const updatePixelAreaSize = (direction: Direction, count: number = 1) => {
   resetRectNames();
   PixelRectFrame.value.forceUpdate();
   Stage.value.getStage().forceFullRender();
+  Stage.value.addStageBgContainer(PixelRectFrame.value);
 };
 
 const resetRectNames = () => {
@@ -344,7 +369,7 @@ const resetRectNames = () => {
 const changeMode = (e: any) => {
   const checked = e.target.checked;
   isFillMode.value = checked;
-  mode.value = checked ? MouseMode.FILL : MouseMode.BASIC;
+  mode.value = MouseMode.FILL;
   Stage.value.setMouseMode(mode.value, PixelRectFrame.value);
 };
 
@@ -528,25 +553,12 @@ const initByLeafer = () => {
 const openFileSelect = () => {
   fileInput.value.click();
 };
+// 下载图片
 const exportImage2 = () => {
-  const { x, y, width, height } = PixelRectFrame.value;
-  const canvas: Canvas = new Canvas({
-    x,
-    y,
-    width,
-    height,
+  // leafer支持了图形的导出
+  PixelRectFrame.value.export("png", 0.8).then((res: any) => {
+    downloadPNGForCanvas(res.data, "test.png");
   });
-  // 导出时, 清除背景
-  PixelRectFrame.value.children.forEach((rect: Rect) => {
-    if (rect.fill === "#ebe5ef") {
-      rect.fill = "rgba(0,0,0,0)";
-    }
-  });
-  // 只画, 不在页面呈现
-  canvas.draw(PixelRectFrame.value);
-
-  downloadPNGForCanvas(canvas.canvas.toDataURL() as string, "test.png");
-  canvas.destroy();
 };
 
 const uploadFile = (e: any) => {
@@ -697,7 +709,7 @@ const setClearFillConfig = () => {
     changeColor(colorConfig.value[0]);
   } else {
     PixelRectFrame.value.cursor = "cell";
-    Stage.value.setFillConfig("color", "#ebe5ef");
+    Stage.value.setFillConfig("color", "transparent");
   }
 };
 
@@ -714,6 +726,7 @@ onMounted(() => {
   bindKeyboardEvent();
   loadLocalPreset();
   genPixelCanvasFrame();
+  Stage.value.setMouseMode(mode.value, PixelRectFrame.value);
 });
 </script>
 
